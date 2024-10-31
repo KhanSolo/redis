@@ -4,6 +4,9 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 
+mod resp;
+mod resp_result;
+
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:6379").await?;
@@ -31,8 +34,6 @@ async fn handle_connection(mut stream: TcpStream) {
                 println!("{string}");
 
                 let response = "+PONG\r\n";
-                // stream.write(response.as_bytes()).unwrap();
-                // stream.flush().unwrap();
                 if let Err(e) = stream.write_all(response.as_bytes()).await {
                     eprintln!("Error writing to socket: {}", e);
                 }
