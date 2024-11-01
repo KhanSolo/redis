@@ -1,5 +1,10 @@
 use crate::resp_result::{RESPError, RESPResult};
 
+pub fn binary_extract_line_as_string(buffer: &[u8], index: &mut usize) -> RESPResult<String> {
+    let string = binary_extract_line(buffer, index)?;
+    Ok(String::from_utf8(string)?)
+}
+
 // Extracts bytes from the buffer until a `\r` is reached
 fn binary_extract_line(buffer: &[u8], index: &mut usize) -> RESPResult<Vec<u8>> {
     let mut output = Vec::new();
@@ -14,6 +19,7 @@ fn binary_extract_line(buffer: &[u8], index: &mut usize) -> RESPResult<Vec<u8>> 
         *index = buffer.len();
         return Err(RESPError::OutOfBounds(*index));
     }
+
     let mut previous_elem: u8 = buffer[*index].clone();
     let mut separator_found: bool = false;
     let mut final_index: usize = *index;
@@ -124,6 +130,15 @@ mod tests {
         let mut index: usize = 0;
         let output = binary_extract_line(buffer, &mut index).unwrap();
         assert_eq!(output, "OK".as_bytes());
+        assert_eq!(index, 4);
+    }
+
+    #[test]
+    fn test_binary_extract_line_as_string() {
+        let buffer = "OK\r\n".as_bytes();
+        let mut index: usize = 0;
+        let output = binary_extract_line_as_string(buffer, &mut index).unwrap();
+        assert_eq!(output, String::from("OK"));
         assert_eq!(index, 4);
     }
 }
