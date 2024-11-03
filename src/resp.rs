@@ -48,6 +48,20 @@ fn binary_extract_line(buffer: &[u8], index: &mut usize) -> RESPResult<Vec<u8>> 
     Ok(output)
 }
 
+/*
+    RESP types are always prefixed with a specific character, so we need something that removes the
+    prefix before we can parse the rest. We could just skip the first byte, but it’s better to double check
+    that the buffer contains exactly what we expect.
+*/
+// Checks that the first character of a RESP buffer is the given one and removes it.
+pub fn resp_remove_type(value: char, buffer: &[u8], index: &mut usize) -> RESPResult<()> {
+    if buffer[*index] != value as u8 {
+        return Err(RESPError::WrongType);
+    }
+    *index += 1;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -140,5 +154,21 @@ mod tests {
         let output = binary_extract_line_as_string(buffer, &mut index).unwrap();
         assert_eq!(output, String::from("OK"));
         assert_eq!(index, 4);
+    }
+
+    #[test]
+    fn test_binary_remove_type() {
+        let buffer = "+OK\r\n".as_bytes();
+        let mut index: usize = 0;
+        resp_remove_type('+', buffer, &mut index).unwrap();
+        assert_eq!(index, 1);
+    }
+    #[test]
+    fn test_binary_remove_type_error() {
+        let buffer = "*OK\r\n".as_bytes();
+        let mut index: usize = 0;
+        let error = resp_remove_type('+', buffer, &mut index).unwrap_err();
+        assert_eq!(index, 0);
+        assert_eq!(error, RESPError::WrongType);
     }
 }
