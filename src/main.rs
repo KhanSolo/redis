@@ -1,3 +1,4 @@
+use resp::RESP;
 use std::str;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -33,8 +34,8 @@ async fn handle_connection(mut stream: TcpStream) {
                 let string = str::from_utf8(&buffer).expect("Our bytes should be valid utf8");
                 println!("{string}");
 
-                let response = "+PONG\r\n";
-                if let Err(e) = stream.write_all(response.as_bytes()).await {
+                let response = RESP::SimpleString(String::from("PONG"));
+                if let Err(e) = stream.write_all(response.to_string().as_bytes()).await {
                     eprintln!("Error writing to socket: {}", e);
                 }
             }
