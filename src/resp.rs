@@ -84,6 +84,26 @@ pub fn resp_remove_type(value: char, buffer: &[u8], index: &mut usize) -> RESPRe
     Ok(())
 }
 
+fn parser_router(
+    buffer: &[u8],
+    index: &mut usize,
+) -> Option<fn(&[u8], &mut usize) -> RESPResult<RESP>> {
+    match buffer[*index] {
+        b'+' => Some(parse_simple_string),
+        _ => None,
+    }
+}
+
+pub fn bytes_to_resp(buffer: &[u8], index: &mut usize) -> RESPResult<RESP> {
+    match parser_router(buffer, index) {
+        Some(parse_func) => {
+            let result: RESP = parse_func(buffer, index)?;
+            Ok(result)
+        }
+        None => Err(RESPError::Unknown),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,5 +222,22 @@ mod tests {
         let output = parse_simple_string(buffer, &mut index).unwrap();
         assert_eq!(output, RESP::SimpleString(String::from("OK")));
         assert_eq!(index, 5);
+    }
+
+    #[test]
+    fn test_bytes_to_resp_simple_string() {
+        let buffer = "+OK\r\n".as_bytes();
+        let mut index: usize = 0;
+        let output = bytes_to_resp(buffer, &mut index).unwrap();
+        assert_eq!(output, RESP::SimpleString(String::from("OK")));
+        assert_eq!(index, 5);
+    }
+    #[test]
+    fn test_bytes_to_resp_unknown() {
+        let buffer = "?OK\r\n".as_bytes();
+        let mut index: usize = 0;
+        let error = bytes_to_resp(buffer, &mut index).unwrap_err();
+        assert_eq!(error, RESPError::Unknown);
+        assert_eq!(index, 0);
     }
 }
