@@ -1,4 +1,5 @@
-use resp::RESP;
+use crate::resp::{bytes_to_resp, RESP};
+use crate::server::process_request;
 use std::str;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -7,6 +8,7 @@ use tokio::{
 
 mod resp;
 mod resp_result;
+mod server;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
@@ -34,7 +36,23 @@ async fn handle_connection(mut stream: TcpStream) {
                 let string = str::from_utf8(&buffer).expect("Our bytes should be valid utf8");
                 println!("{string}");
 
-                let response = RESP::SimpleString(String::from("PONG"));
+                let mut index: usize = 0;
+                let request = match bytes_to_resp(&buffer[..size].to_vec(), &mut index) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        return;
+                    }
+                };
+
+                let response = match process_request(request) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        eprintln!("Error parsing command: {}", e);
+                        return;
+                    }
+                };
+
                 if let Err(e) = stream.write_all(response.to_string().as_bytes()).await {
                     eprintln!("Error writing to socket: {}", e);
                 }
