@@ -170,9 +170,11 @@ fn parse_bulk_string(buffer: &[u8], index: &mut usize) -> RESPResult<RESP> {
 fn parse_array(buffer: &[u8], index: &mut usize) -> RESPResult<RESP> {
     resp_remove_type('*', buffer, index)?;
     let length = resp_extract_length(buffer, index)?;
+
     if length < 0 {
         return Err(RESPError::IncorrectLength(length));
     }
+
     let mut data = Vec::new();
     for _ in 0..length {
         match parser_router(buffer, index) {
@@ -392,7 +394,7 @@ mod tests {
         let buffer = "$7\r\nOK\r\n".as_bytes();
         let mut index: usize = 0;
         let error = parse_bulk_string(buffer, &mut index).unwrap_err();
-        assert_eq!(error, RESPError::OutOfBounds(8));
+        assert_eq!(error, RESPError::OutOfBounds(12));
         assert_eq!(index, 4);
     }
 
