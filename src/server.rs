@@ -36,6 +36,7 @@ pub fn process_request(request: RESP) -> ServerResult<RESP> {
 
     match command[0].to_lowercase().as_str() {
         "ping" => Ok(RESP::SimpleString(String::from("PONG"))),
+        "echo" => Ok(RESP::BulkString(command[1].clone())),
         _ => {
             return Err(ServerError::CommandError);
         }
@@ -45,6 +46,7 @@ pub fn process_request(request: RESP) -> ServerResult<RESP> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn test_process_request_ping() {
         let request = RESP::Array(vec![RESP::BulkString(String::from("PING"))]);
@@ -62,5 +64,15 @@ mod tests {
         let request = RESP::Array(vec![RESP::SimpleString(String::from("PING"))]);
         let error = process_request(request).unwrap_err();
         assert_eq!(error, ServerError::CommandError);
+    }
+
+    #[test]
+    fn test_process_request_echo() {
+        let request = RESP::Array(vec![
+            RESP::BulkString(String::from("ECHO")),
+            RESP::BulkString(String::from("42")),
+        ]);
+        let output = process_request(request).unwrap();
+        assert_eq!(output, RESP::BulkString(String::from("42")));
     }
 }
