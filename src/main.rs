@@ -1,6 +1,8 @@
 use crate::resp::{bytes_to_resp, RESP};
 use crate::server::process_request;
 use std::str;
+use std::sync::{Arc, Mutex};
+use storage::Storage;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -16,10 +18,12 @@ mod storage_result;
 async fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:6379").await?;
 
+    let storage = Arc::new(Mutex::new(Storage::new()));
+
     loop {
         match listener.accept().await {
             Ok((stream, _)) => {
-                tokio::spawn(handle_connection(stream));
+                tokio::spawn(handle_connection(stream, storage.clone()));
             }
             Err(e) => {
                 println!("Error: {}", e);
@@ -29,7 +33,7 @@ async fn main() -> std::io::Result<()> {
     }
 }
 
-async fn handle_connection(mut stream: TcpStream) {
+async fn handle_connection(mut stream: TcpStream, storage: Arc<Mutex<Storage>>) {
     let mut buffer = [0; 512];
     loop {
         match stream.read(&mut buffer).await {
@@ -47,7 +51,7 @@ async fn handle_connection(mut stream: TcpStream) {
                     }
                 };
 
-                let response = match process_request(request) {
+                let response = match process_request(request, storage.clone()) {
                     Ok(v) => v,
                     Err(e) => {
                         eprintln!("Error parsing command: {}", e);
