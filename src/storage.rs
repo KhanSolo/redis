@@ -10,6 +10,8 @@ pub enum StorageValue {
 
 pub struct Storage {
     store: HashMap<String, StorageData>,
+    expiry: HashMap<String, SystemTime>,
+    active_expiry: bool,
 }
 
 #[derive(Debug)]
@@ -21,8 +23,12 @@ pub struct StorageData {
 
 impl Storage {
     pub fn new() -> Self {
-        let store: HashMap<String, StorageData> = HashMap::new();
-        Self { store: store }
+        let store = HashMap::new();
+        Self {
+            store: store,
+            expiry: HashMap::new(),
+            active_expiry: true,
+        }
     }
 
     pub fn process_command(&mut self, command: &Vec<String>) -> StorageResult<RESP> {
@@ -76,8 +82,30 @@ impl Storage {
                 value: StorageValue::String(v),
                 creation_time: _,
                 expiry: _,
-                }) => return Ok(Some(v.clone())),
+            }) => return Ok(Some(v.clone())),
             None => return Ok(None),
+        }
+    }
+
+    pub fn set_active_expiry(&mut self, value: bool) {
+        self.active_expiry = value;
+    }
+
+    pub fn expire_keys(&mut self) {
+        if !self.active_expiry {
+            return;
+        }
+
+        let now = SystemTime::now();
+        let expired_keys: Vec<String> = self
+            .expiry
+            .iter()
+            .filter_map(|(key, &value)| if value < now { Some(key.clone()) } else { None })
+            .collect();
+
+        for k in expired_keys {
+            self.store.remove(&k);
+            self.expiry.remove(&k);
         }
     }
 }
@@ -111,6 +139,9 @@ mod tests {
     fn test_create_new() {
         let storage: Storage = Storage::new();
         assert_eq!(storage.store.len(), 0);
+        assert_eq!(storage.expiry.len(), 0);
+        assert_eq!(storage.expiry, HashMap::<String, SystemTime>::new());
+        assert!(storage.active_expiry);
     }
 
     #[test]
@@ -195,6 +226,35 @@ mod tests {
         let command = vec![String::from("get"), String::from("akey")];
         let output = storage.process_command(&command).unwrap();
         assert_eq!(output, RESP::BulkString(String::from("avalue")));
+        assert_eq!(storage.store.len(), 1);
+    }
+
+    #[test]
+    fn test_expire_keys() {
+        let mut storage: Storage = Storage::new();
+        storage
+            .set(String::from("akey"), String::from("avalue"))
+            .unwrap();
+        storage.expiry.insert(
+            String::from("akey"),
+            SystemTime::now() - Duration::from_secs(5),
+        );
+        storage.expire_keys();
+        assert_eq!(storage.store.len(), 0);
+    }
+
+    #[test]
+    fn test_expire_keys_deactivated() {
+        let mut storage: Storage = Storage::new();
+        storage.set_active_expiry(false);
+        storage
+            .set(String::from("akey"), String::from("avalue"))
+            .unwrap();
+        storage.expiry.insert(
+            String::from("akey"),
+            SystemTime::now() - Duration::from_secs(5),
+        );
+        storage.expire_keys();
         assert_eq!(storage.store.len(), 1);
     }
 }
