@@ -289,7 +289,7 @@ mod tests {
         let mut storage: Storage = Storage::new();
         let mut avalue = StorageData::from(String::from("avalue"));
         avalue.add_expiry(Duration::from_millis(100));
-        
+
         let output = storage
             .set(
                 String::from("akey"),
