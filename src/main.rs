@@ -4,6 +4,7 @@ use std::str;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use storage::Storage;
+
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -48,40 +49,44 @@ async fn main() -> std::io::Result<()> {
 async fn handle_connection(mut stream: TcpStream, storage: Arc<Mutex<Storage>>) {
     let mut buffer = [0; 512];
     loop {
-        match stream.read(&mut buffer).await {
-            Ok(size) if size > 0 => {
-                println!("some bytes were read {}", size);
-                let string = str::from_utf8(&buffer).expect("Our bytes should be valid utf8");
-                println!("{string}");
+        tokio::select! {
+            result = stream.read(&mut buffer) => {
+                match result {
+                    Ok(size) if size > 0 => {
+                        println!("some bytes were read {}", size);
+                        let string = str::from_utf8(&buffer).expect("Our bytes should be valid utf8");
+                        println!("{string}");
 
-                let mut index: usize = 0;
-                let request = match bytes_to_resp(&buffer[..size].to_vec(), &mut index) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        eprintln!("Error: {}", e);
-                        return;
+                        let mut index: usize = 0;
+                        let request = match bytes_to_resp(&buffer[..size].to_vec(), &mut index) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                eprintln!("Error: {}", e);
+                                return;
+                            }
+                        };
+
+                        let response = match process_request(request, storage.clone()) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                eprintln!("Error parsing command: {}", e);
+                                return;
+                            }
+                        };
+
+                        if let Err(e) = stream.write_all(response.to_string().as_bytes()).await {
+                            eprintln!("Error writing to socket: {}", e);
+                        }
                     }
-                };
-
-                let response = match process_request(request, storage.clone()) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        eprintln!("Error parsing command: {}", e);
-                        return;
+                    Ok(_) => {
+                        println!("connection closed");
+                        break;
                     }
-                };
-
-                if let Err(e) = stream.write_all(response.to_string().as_bytes()).await {
-                    eprintln!("Error writing to socket: {}", e);
+                    Err(e) => {
+                        println!("Error : {e}");
+                        break;
+                    }
                 }
-            }
-            Ok(_) => {
-                println!("connection closed");
-                break;
-            }
-            Err(e) => {
-                println!("Error : {e}");
-                break;
             }
         }
     }
