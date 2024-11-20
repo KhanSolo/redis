@@ -2,6 +2,7 @@ use crate::request::Request;
 use crate::resp::{bytes_to_resp, RESP};
 use crate::server::process_request;
 use crate::storage::Storage;
+use connection::ConnectionMessage;
 use server_result::ServerMessage;
 use std::str;
 use std::sync::{Arc, Mutex};
@@ -28,12 +29,15 @@ async fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:6379").await?;
     let storage = Arc::new(Mutex::new(Storage::new()));
     let mut interval_timer = tokio::time::interval(Duration::from_millis(10));
+
+    let (server_sender, _) = mpsc::channel::<ConnectionMessage>(32);
+
     loop {
         select! {
             connection = listener.accept() => {
                 match connection {
                     Ok((stream, _)) => {
-                        tokio::spawn(handle_connection(stream, storage.clone()));
+                        tokio::spawn(handle_connection(stream, server_sender.clone()));
                     }
                     Err(e) => {
                         println!("Error: {}", e);
@@ -49,7 +53,7 @@ async fn main() -> std::io::Result<()> {
     }
 }
 
-async fn handle_connection(mut stream: TcpStream, storage: Arc<Mutex<Storage>>) {
+async fn handle_connection(mut stream: TcpStream, server_sender: mpsc::Sender<ConnectionMessage>) {
     let mut buffer = [0; 512];
 
     let (connection_sender, _) = mpsc::channel::<ServerMessage>(32);
@@ -64,7 +68,6 @@ async fn handle_connection(mut stream: TcpStream, storage: Arc<Mutex<Storage>>) 
                         println!("{string}");
 
                         let mut index: usize = 0;
-                        //let request = match bytes_to_resp(&buffer[..size].to_vec(), &mut index) {
                         let resp = match bytes_to_resp(&buffer[..size].to_vec(), &mut index) {
                             Ok(v) => v,
                             Err(e) => {
@@ -78,16 +81,12 @@ async fn handle_connection(mut stream: TcpStream, storage: Arc<Mutex<Storage>>) 
                             sender: connection_sender.clone(),
                         };
 
-                        let response = match process_request(request, storage.clone()) {
-                            Ok(v) => v,
+                        match server_sender.send(ConnectionMessage::Request(request)).await {
+                            Ok(()) => {},
                             Err(e) => {
-                                eprintln!("Error parsing command: {}", e);
+                                eprintln!("Error sending request: {}", e);
                                 return;
                             }
-                        };
-
-                        if let Err(e) = stream.write_all(response.to_string().as_bytes()).await {
-                            eprintln!("Error writing to socket: {}", e);
                         }
                     }
                     Ok(_) => {
