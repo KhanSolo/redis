@@ -1,5 +1,6 @@
 use crate::connection::ConnectionMessage;
 use crate::request::Request;
+use crate::server_result::ServerMessage;
 use crate::{
     storage::Storage,
     storage_result::{StorageError, StorageResult},
@@ -57,14 +58,18 @@ pub async fn process_request(request: Request, server: &mut Server) {
         }
     }
 
-    // let mut guard = storage.lock().unwrap();
-    // let response = guard.process_command(&command);
-    // response
     let storage = match server.storage.as_mut() {
         Some(storage) => storage,
         None => panic!(),
     };
     let response = storage.process_command(&command);
+
+    match response {
+        Ok(v) => {
+            request.sender.send(ServerMessage::Data(v)).await.unwrap();
+        }
+        Err(e) => (),
+    }
 }
 
 pub async fn run_server(mut server: Server, mut crx: mpsc::Receiver<ConnectionMessage>) {

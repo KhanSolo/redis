@@ -1,8 +1,8 @@
 use crate::request::Request;
 use crate::resp::{bytes_to_resp, RESP};
-use crate::server::process_request;
 use crate::storage::Storage;
-use connection::ConnectionMessage;
+use connection::{ConnectionError, ConnectionMessage};
+use server::{run_server, Server};
 use server_result::ServerMessage;
 use std::str;
 use std::sync::{Arc, Mutex};
@@ -27,8 +27,13 @@ mod storage_result;
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:6379").await?;
-    let storage = Arc::new(Mutex::new(Storage::new()));
-    let mut interval_timer = tokio::time::interval(Duration::from_millis(10));
+
+    let storage = Storage::new();
+    let mut server = Server::new();
+    server = server.set_storage(storage);
+
+    let (server_sender, server_receiver) = mpsc::channel::<ConnectionMessage>(32);
+    tokio::spawn(run_server(server, server_receiver));
 
     let (server_sender, _) = mpsc::channel::<ConnectionMessage>(32);
 
@@ -45,10 +50,6 @@ async fn main() -> std::io::Result<()> {
                     }
                 }
             }
-
-            _ = interval_timer.tick() => {
-                tokio::spawn(expire_keys(storage.clone()));
-            }
         }
     }
 }
@@ -56,7 +57,7 @@ async fn main() -> std::io::Result<()> {
 async fn handle_connection(mut stream: TcpStream, server_sender: mpsc::Sender<ConnectionMessage>) {
     let mut buffer = [0; 512];
 
-    let (connection_sender, _) = mpsc::channel::<ServerMessage>(32);
+    let (connection_sender, mut connection_receiver) = mpsc::channel::<ServerMessage>(32);
 
     loop {
         select! {
@@ -98,7 +99,17 @@ async fn handle_connection(mut stream: TcpStream, server_sender: mpsc::Sender<Co
                         break;
                     }
                 }
-            }
+            },
+
+            Some(response) = connection_receiver.recv() => {
+                    let _ = match response {
+                        ServerMessage::Data(v) => stream.write_all(v.to_string().as_bytes()).await,
+                        ServerMessage::Error(e) => {
+                            eprintln!("Error: {}", ConnectionError::ServerError(e));
+                            return;
+                        }
+                    };
+                }
         }
     }
 }
