@@ -1,31 +1,17 @@
 use crate::connection::ConnectionMessage;
 use crate::request::Request;
-use crate::server_result::ServerMessage;
+use crate::server_result::{ServerError, ServerValue};
 use crate::{
     storage::Storage,
     storage_result::{StorageError, StorageResult},
     RESP,
 };
+use std::time::Duration;
 use std::{
     fmt,
     sync::{Arc, Mutex},
 };
 use tokio::sync::mpsc;
-
-#[derive(Debug, PartialEq)]
-pub enum ServerError {
-    CommandError,
-}
-
-impl fmt::Display for ServerError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ServerError::CommandError => write!(f, "Error while processing!"),
-        }
-    }
-}
-
-pub type ServerResult<T> = Result<T, ServerError>;
 
 pub struct Server {
     pub storage: Option<Storage>,
@@ -40,12 +26,23 @@ impl Server {
         self.storage = Some(storage);
         self
     }
+
+    pub fn expire_keys(&mut self) {
+        let storage = match self.storage.as_mut() {
+            Some(storage) => storage,
+            None => return,
+        };
+        storage.expire_keys();
+    }
 }
 
 pub async fn process_request(request: Request, server: &mut Server) {
     let elements = match &request.value {
         RESP::Array(v) => v,
-        _ => panic!(),
+        _ => {
+            request.error(ServerError::IncorrectData).await;
+            return;
+        }
     };
 
     let mut command = Vec::new();
@@ -54,25 +51,32 @@ pub async fn process_request(request: Request, server: &mut Server) {
             // the vector command now needs a clone of the bulk string because we are eventually
             //transferring its ownership to storage.process_command
             RESP::BulkString(v) => command.push(v.clone()),
-            _ => panic!(),
+            _ => {
+                request.error(ServerError::IncorrectData).await;
+                return;
+            }
         }
     }
 
     let storage = match server.storage.as_mut() {
         Some(storage) => storage,
-        None => panic!(),
+        None => {
+            request.error(ServerError::StorageNotInitialised).await;
+            return;
+        }
     };
     let response = storage.process_command(&command);
 
     match response {
         Ok(v) => {
-            request.sender.send(ServerMessage::Data(v)).await.unwrap();
+            request.data(ServerValue::RESP(v)).await;
         }
-        Err(e) => (),
+        Err(_) => (),
     }
 }
 
 pub async fn run_server(mut server: Server, mut crx: mpsc::Receiver<ConnectionMessage>) {
+    let mut interval_timer = tokio::time::interval(Duration::from_millis(10));
     loop {
         tokio::select! {
             Some(message) = crx.recv() => {
@@ -81,6 +85,10 @@ pub async fn run_server(mut server: Server, mut crx: mpsc::Receiver<ConnectionMe
                         process_request(request, &mut server).await;
                     }
                 }
+            }
+
+            _ = interval_timer.tick() => {
+                server.expire_keys();
             }
         }
     }
