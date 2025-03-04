@@ -20,14 +20,14 @@ impl fmt::Display for ServerError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ServerValue {
     RESP(RESP),
 }
 
 pub type _ServerResult = Result<ServerValue, ServerError>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ServerMessage {
     Data(ServerValue),
     Error(ServerError),
