@@ -16,7 +16,9 @@ mod storage_result;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let storage = Storage::new();
+    let mut storage = Storage::new();
+    storage.set_active_expiry(true); // temporary
+
     let mut server = Server::new();
     server = server.set_storage(storage);
 
