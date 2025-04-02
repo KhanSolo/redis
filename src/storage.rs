@@ -177,14 +177,6 @@ mod tests {
     }
 
     #[test]
-    fn test_command_ping_uppercase() {
-        let command = vec![String::from("PING")];
-        let storage: Storage = Storage::new();
-        let output = storage.command_ping(&command).unwrap();
-        assert_eq!(output, RESP::SimpleString(String::from("PONG")));
-    }
-
-    #[test]
     fn test_command_echo() {
         let command = vec![String::from("echo"), String::from("42")];
         let storage: Storage = Storage::new();

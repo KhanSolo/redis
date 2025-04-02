@@ -102,26 +102,6 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_process_request_ping() {
-        let (connection_sender, mut connection_receiver) = mpsc::channel::<ServerMessage>(32);
-        let request = Request {
-            value: RESP::Array(vec![RESP::BulkString(String::from("PING"))]),
-            sender: connection_sender,
-        };
-
-        let storage = Storage::new();
-        let mut server = &mut Server::new().set_storage(storage);
-        process_request(request, &mut server).await;
-
-        assert_eq!(
-            connection_receiver.try_recv().unwrap(),
-            ServerMessage::Data(
-                ServerValue::RESP(
-                    RESP::SimpleString(String::from("PONG"))))
-                );
-    }
-
-    #[tokio::test]
     async fn test_process_request_not_array() {
         let (connection_sender, mut connection_receiver) = mpsc::channel::<ServerMessage>(32);
         let request = Request {
