@@ -11,11 +11,11 @@ pub async fn command(_server:&Server, request:&Request, command:&Vec<String>){
 #[cfg(test)]
 mod tests {
     use tokio::sync::mpsc;
-    use crate::{request, server_result::ServerMessage};
+    use crate::server_result::ServerMessage;
     use super::*;
 
     #[tokio::test]
-    async fn test() {
+    async fn test_command() {
         let server = Server::new();
         let cmd = vec![String::from("echo"), String::from("hi")];
         let (sender, mut receiver) = mpsc::channel::<ServerMessage>(32);
