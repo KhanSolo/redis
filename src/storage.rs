@@ -92,7 +92,7 @@ impl Storage {
         Ok(String::from("OK"))
     }
 
-    fn get(&mut self, key: String) -> StorageResult<Option<String>> {
+    pub fn get(&mut self, key: String) -> StorageResult<Option<String>> {
         if let Some(&expiry) = self.expiry.get(&key) {
             if SystemTime::now() >= expiry {
                 self.expiry.remove(&key);

@@ -96,7 +96,7 @@ pub async fn run_server(mut server: Server, mut crx: mpsc::Receiver<ConnectionMe
 
 #[cfg(test)]
 mod tests {
-    use crate::{server, server_result::ServerMessage};
+    use crate::server_result::ServerMessage;
     use tokio::sync::mpsc;
 
     use super::*;

@@ -3,6 +3,8 @@ use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum ServerError {
+    CommandInternalError(String),
+    CommandSyntaxError(String),
     IncorrectData,
     StorageNotInitialised,
 }
@@ -10,6 +12,12 @@ pub enum ServerError {
 impl fmt::Display for ServerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            ServerError::CommandInternalError(s) => {
+                write!(f, "Internal error while processing {}", s)
+            }
+            ServerError::CommandSyntaxError(s) => {
+                write!(f, "Syntax error while processing {}", s)
+            }
             ServerError::IncorrectData => {
                 write!(f, "Data received from stream is incorrect.")
             }
