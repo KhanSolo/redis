@@ -1,15 +1,15 @@
-use crate::{request::Request, server::Server};
-use crate::server_result::ServerValue;
 use crate::resp::RESP;
+use crate::server_result::ServerValue;
+use crate::{request::Request, server::Server};
 
-pub async fn command(_server:&Server, request:&Request, _command:&Vec<String>){
+pub async fn command(_server: &Server, request: &Request, _command: &Vec<String>) {
     request
         .data(ServerValue::RESP(RESP::SimpleString("PONG".to_string())))
         .await;
 }
 
 #[cfg(test)]
-mod tests{
+mod tests {
     use crate::server_result::ServerMessage;
     use tokio::sync::mpsc;
 
@@ -43,7 +43,7 @@ mod tests{
         command(&server, &request, &cmd).await;
         assert_eq!(
             connection_receiver.try_recv().unwrap(),
-            ServerMessage::Data(ServerValue::RESP(RESP::SimpleString(String::from("PONG" ))))
+            ServerMessage::Data(ServerValue::RESP(RESP::SimpleString(String::from("PONG"))))
         )
     }
 }

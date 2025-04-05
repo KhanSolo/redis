@@ -152,10 +152,8 @@ mod tests {
         process_request(request, &mut server).await;
         assert_eq!(
             connection_receiver.try_recv().unwrap(),
-            ServerMessage::Data(
-                ServerValue::RESP(
-                    RESP::BulkString(String::from("42"))))
-                );
+            ServerMessage::Data(ServerValue::RESP(RESP::BulkString(String::from("42"))))
+        );
     }
 
     #[test]

@@ -1,8 +1,8 @@
-use crate::{request::Request, server::Server};
-use crate::server_result::ServerValue;
 use crate::resp::RESP;
+use crate::server_result::ServerValue;
+use crate::{request::Request, server::Server};
 
-pub async fn command(_server:&Server, request:&Request, command:&Vec<String>){    
+pub async fn command(_server: &Server, request: &Request, command: &Vec<String>) {
     request
         .data(ServerValue::RESP(RESP::BulkString(command[1].to_string())))
         .await;
@@ -10,9 +10,9 @@ pub async fn command(_server:&Server, request:&Request, command:&Vec<String>){
 
 #[cfg(test)]
 mod tests {
-    use tokio::sync::mpsc;
-    use crate::server_result::ServerMessage;
     use super::*;
+    use crate::server_result::ServerMessage;
+    use tokio::sync::mpsc;
 
     #[tokio::test]
     async fn test_command() {
@@ -20,7 +20,10 @@ mod tests {
         let cmd = vec![String::from("echo"), String::from("hi")];
         let (sender, mut receiver) = mpsc::channel::<ServerMessage>(32);
 
-        let request = Request { value: RESP::Null, sender: sender};
+        let request = Request {
+            value: RESP::Null,
+            sender: sender,
+        };
 
         command(&server, &request, &cmd).await;
 
