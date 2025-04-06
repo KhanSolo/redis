@@ -38,5 +38,30 @@ pub async fn command(server: &mut Server, request: &Request, command: &Vec<Strin
 mod tests {
     use super::*;
     use crate::server_result::ServerMessage;
+    use crate::set::SetArgs;
+    use crate::storage::Storage;
     use tokio::sync::mpsc;
+
+    #[tokio::test]
+    async fn test_command() {
+        let mut storage = Storage::new();
+        storage
+            .set(String::from("key"), String::from("value"), SetArgs::new())
+            .unwrap();
+        let mut server = Server::new().set_storage(storage);
+        let (sender, mut receiver) = mpsc::channel::<ServerMessage>(32);
+
+        let request = Request {
+            value: RESP::Null,
+            sender: sender,
+        };
+        let cmd = vec![String::from("get"), String::from("key")];
+
+        command(&mut server, &request, &cmd).await;
+
+        assert_eq!(
+            receiver.try_recv().unwrap(),
+            ServerMessage::Data(ServerValue::RESP(RESP::BulkString(String::from("value"))))
+        );
+    }
 }

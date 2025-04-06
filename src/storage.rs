@@ -77,7 +77,7 @@ impl Storage {
         }
     }
 
-    fn set(&mut self, key: String, value: String, args: SetArgs) -> StorageResult<String> {
+    pub fn set(&mut self, key: String, value: String, args: SetArgs) -> StorageResult<String> {
         let mut data = StorageData::from(value);
         if let Some(value) = args.expiry {
             let expiry = match value {
