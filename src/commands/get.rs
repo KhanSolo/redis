@@ -49,19 +49,56 @@ mod tests {
             .set(String::from("key"), String::from("value"), SetArgs::new())
             .unwrap();
         let mut server = Server::new().set_storage(storage);
+        let cmd = vec![String::from("get"), String::from("key")];
         let (sender, mut receiver) = mpsc::channel::<ServerMessage>(32);
 
         let request = Request {
             value: RESP::Null,
             sender: sender,
         };
-        let cmd = vec![String::from("get"), String::from("key")];
 
         command(&mut server, &request, &cmd).await;
 
         assert_eq!(
             receiver.try_recv().unwrap(),
             ServerMessage::Data(ServerValue::RESP(RESP::BulkString(String::from("value"))))
+        );
+    }
+
+    #[tokio::test]
+    async fn test_storage_not_initialised() {
+        let mut server = Server::new();
+        let cmd = vec![String::from("get"), String::from("key")];
+        let (sender, mut receiver) = mpsc::channel::<ServerMessage>(32);
+        let request = Request {
+            value: RESP::Null,
+            sender: sender,
+        };
+
+        command(&mut server, &request, &cmd).await;
+
+        assert_eq!(
+            receiver.try_recv().unwrap(),
+            ServerMessage::Error(ServerError::StorageNotInitialised)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_wrong_syntax() {
+        let storage = Storage::new();
+        let mut server = Server::new().set_storage(storage);
+        let cmd = vec![String::from("get")];
+        let (sender, mut receiver) = mpsc::channel::<ServerMessage>(32);
+        let request = Request {
+            value: RESP::Null,
+            sender: sender,
+        };
+
+        command(&mut server, &request, &cmd).await;
+
+        assert_eq!(
+            receiver.try_recv().unwrap(),
+            ServerMessage::Error(ServerError::CommandSyntaxError("get".to_string()))
         );
     }
 }
