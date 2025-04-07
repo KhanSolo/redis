@@ -4,8 +4,8 @@ use crate::{request::Request, server::Server};
 
 pub async fn command(server: &mut Server, request: &Request, command: &Vec<String>) {
     // validate storage
+    //                           &mut Option<Storage> -> Option<&mut Storage>
     let storage = match server.storage.as_mut() {
-        // &mut Option<Storage> -> Option<&mut Storage>
         Some(s) => s,
         None => {
             request.error(ServerError::StorageNotInitialised).await;
@@ -18,7 +18,7 @@ pub async fn command(server: &mut Server, request: &Request, command: &Vec<Strin
         request
             .error(ServerError::CommandSyntaxError(command.join(" ")))
             .await;
-        return; //?
+        return;
     }
 
     // get
