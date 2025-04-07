@@ -1,3 +1,4 @@
+use crate::commands::{echo, get, ping, set};
 use crate::connection::ConnectionMessage;
 use crate::request::Request;
 use crate::server_result::{ServerError, ServerValue};
@@ -58,20 +59,25 @@ pub async fn process_request(request: Request, server: &mut Server) {
         }
     }
 
-    let storage = match server.storage.as_mut() {
-        Some(storage) => storage,
-        None => {
-            request.error(ServerError::StorageNotInitialised).await;
-            return;
+    let command_name = command[0].to_lowercase();
+    match command_name.as_str() {
+        "echo" => {
+            echo::command(server, &request, &command).await;
         }
-    };
-    let response = storage.process_command(&command);
-
-    match response {
-        Ok(v) => {
-            request.data(ServerValue::RESP(v)).await;
+        "get" => {
+            get::command(server, &request, &command).await;
         }
-        Err(_) => (),
+        "ping" => {
+            ping::command(server, &request, &command).await;
+        }
+        "set" => {
+            set::command(server, &request, &command).await;
+        }
+        _ => {
+            request
+                .error(ServerError::CommandNotAvailable(command[0].clone()))
+                .await;
+        }
     }
 }
 

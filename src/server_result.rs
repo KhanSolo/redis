@@ -4,6 +4,7 @@ use std::fmt;
 #[derive(Debug, PartialEq)]
 pub enum ServerError {
     CommandInternalError(String),
+    CommandNotAvailable(String),
     CommandSyntaxError(String),
     IncorrectData,
     StorageNotInitialised,
@@ -23,6 +24,9 @@ impl fmt::Display for ServerError {
             }
             ServerError::StorageNotInitialised => {
                 write!(f, "Storage has not been initialised.")
+            }
+            ServerError::CommandNotAvailable(s) => {
+                write!(f, "Command {} not available.", s)
             }
         }
     }

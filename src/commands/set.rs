@@ -16,7 +16,9 @@ pub async fn command(server: &mut Server, request: &Request, command: &Vec<Strin
 
     // validate command
     if command.len() < 3 {
-        request.error(ServerError::CommandSyntaxError(command.join(" "))).await;
+        request
+            .error(ServerError::CommandSyntaxError(command.join(" ")))
+            .await;
         return;
     }
 
