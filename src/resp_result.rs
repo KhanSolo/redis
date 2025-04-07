@@ -26,7 +26,7 @@ impl fmt::Display for RESPError {
 }
 
 impl From<FromUtf8Error> for RESPError {
-    fn from(value: FromUtf8Error) -> Self {
+    fn from(_value: FromUtf8Error) -> Self {
         Self::FromUtf8
     }
 }
